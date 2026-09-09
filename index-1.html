@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>burakveyusuf — Dünya</title>
+  <meta name="description" content="burakveyusuf — yörüngeden gerçekçi Dünya. Saati ve dilimi seç, kıtaların ışıkları geceye geçsin." />
+  <meta name="theme-color" content="#05060a" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #05060a;
+      --fg: #e8ecf4;
+      --muted: #8b93a7;
+      --accent: #7eb8ff;
+      --panel: rgba(12, 14, 22, 0.72);
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--fg);
+      font-family: "Outfit", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
+    canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; }
+    .ui {
+      position: fixed; inset: 0; z-index: 10;
+      pointer-events: none;
+      display: flex; flex-direction: column;
+    }
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 1.25rem 1.5rem;
+    }
+    .brand {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.35rem; font-weight: 600; letter-spacing: 0.02em;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.6);
+    }
+    .brand span { opacity: 0.55; font-weight: 500; }
+    .controls { display: flex; gap: 0.5rem; pointer-events: auto; }
+    .btn {
+      pointer-events: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    }
+    .btn:hover { background: rgba(20, 24, 36, 0.85); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary {
+      background: linear-gradient(135deg, #3a6ea5, #1e4a7a);
+      border-color: rgba(126, 184, 255, 0.35);
+    }
+    .panel {
+      pointer-events: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem 1.15rem;
+      backdrop-filter: blur(16px);
+      max-width: 280px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .panel h3 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 0.65rem; font-weight: 500;
+    }
+    .time-display {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.45rem; font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    select, input[type="range"] {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 0.65rem;
+    }
+    select { cursor: pointer; }
+    input[type="range"] {
+      -webkit-appearance: none; height: 6px; padding: 0;
+      background: rgba(255,255,255,0.12); border: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      box-shadow: 0 0 8px rgba(126,184,255,0.5);
+    }
+    .live-toggle {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.8rem; color: var(--muted);
+      cursor: pointer; user-select: none;
+    }
+    .live-toggle input { accent-color: var(--accent); width: auto; }
+    .bottom {
+      margin-top: auto;
+      padding: 1.25rem 1.5rem 1.75rem;
+      display: flex; justify-content: center; align-items: flex-end;
+    }
+    .hint {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+      max-width: 340px;
+      line-height: 1.45;
+      transition: opacity 0.6s;
+    }
+    .hint.hidden { opacity: 0; pointer-events: none; }
+    .hits {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      font-weight: 700;
+      color: #ff6b6b;
+      text-shadow: 0 0 30px rgba(255,80,80,0.8);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 15;
+      transition: opacity 0.15s;
+    }
+    .hits.show { opacity: 1; }
+    .finale {
+      position: fixed; inset: 0; z-index: 20;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(5,6,10,0.65);
+      backdrop-filter: blur(6px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.9s;
+    }
+    .finale.show { opacity: 1; pointer-events: auto; }
+    .finale-text {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.9rem, 7vw, 3.4rem);
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.3;
+      text-shadow: 0 4px 40px rgba(0,0,0,0.9);
+      letter-spacing: 0.01em;
+    }
+    .finale-text span {
+      display: block;
+      opacity: 0;
+      transform: translateY(18px);
+      animation: wordIn 0.75s forwards;
+    }
+    @keyframes wordIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .loading {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: var(--bg);
+      transition: opacity 0.6s, visibility 0.6s;
+    }
+    .loading.done { opacity: 0; visibility: hidden; }
+    .loading-bar {
+      width: 160px; height: 3px; background: rgba(255,255,255,0.1);
+      border-radius: 2px; overflow: hidden; margin-top: 1rem;
+    }
+    .loading-bar > div {
+      height: 100%; width: 0%; background: var(--accent);
+      transition: width 0.25s;
+    }
+    .loading p { font-size: 0.85rem; color: var(--muted); margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">
+    <div class="brand" style="font-size:1.5rem">burakveyusuf</div>
+    <div class="loading-bar"><div id="load-prog"></div></div>
+    <p>Dünya yükleniyor…</p>
+  </div>
+
+  <div id="canvas-wrap"></div>
+  <div class="hits" id="hits-display"></div>
+
+  <div class="ui">
+    <div class="top-bar">
+      <div class="brand">burakveyusuf <span>· dünya</span></div>
+      <div class="controls">
+        <button class="btn" id="btn-reset" title="Sıfırla">↺</button>
+      </div>
+    </div>
+
+    <div style="padding: 0 1.5rem; display:flex; justify-content:flex-end;">
+      <div class="panel" id="time-panel">
+        <h3>Zaman</h3>
+        <div class="time-display" id="time-label">12:00</div>
+        <select id="tz-select">
+          <option value="Europe/Istanbul">İstanbul (UTC+3)</option>
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">New York</option>
+          <option value="America/Los_Angeles">Los Angeles</option>
+          <option value="Europe/London">Londra</option>
+          <option value="Asia/Tokyo">Tokyo</option>
+          <option value="Australia/Sydney">Sydney</option>
+        </select>
+        <input type="range" id="time-slider" min="0" max="1439" value="720" />
+        <label class="live-toggle">
+          <input type="checkbox" id="live-clock" checked />
+          Canlı saat
+        </label>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <p class="hint" id="hint">Dünyayı sürükleyerek döndür.<br>Dünyaya 3 kere basılı tut → patlat 💥</p>
+    </div>
+  </div>
+
+  <div class="finale" id="finale">
+    <div class="finale-text" id="finale-words"></div>
+    <button class="btn primary" style="margin-top:2.2rem; pointer-events:auto;" id="btn-replay">Tekrar</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const TEX_BASE = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/planets/';
+    const loadingEl = document.getElementById('loading');
+    const loadProg = document.getElementById('load-prog');
+    const hitsDisplay = document.getElementById('hits-display');
+    const finaleEl = document.getElementById('finale');
+    const finaleWords = document.getElementById('finale-words');
+
+    let loaded = 0;
+    const total = 3;
+    function onProgress() {
+      loaded++;
+      loadProg.style.width = ((loaded / total) * 100) + '%';
+      if (loaded >= total) setTimeout(() => loadingEl.classList.add('done'), 400);
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05060a);
+    scene.fog = new THREE.FogExp2(0x05060a, 0.0008);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0.35, 3.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 1.8;
+    controls.maxDistance = 8;
+    controls.enablePan = false;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.25;
+
+    // Stars
+    const starsGeo = new THREE.BufferGeometry();
+    const starCount = 4000;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 80 + Math.random() * 120;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({
+      color: 0xe8ecf4, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.85
+    }));
+    scene.add(stars);
+
+    const sunDir = new THREE.Vector3(1, 0.15, 0.3).normalize();
+
+    const loader = new THREE.TextureLoader();
+    function loadTex(name, colorSpace = true) {
+      return new Promise((resolve) => {
+        loader.load(TEX_BASE + name, (tex) => {
+          tex.colorSpace = colorSpace ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+          tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          onProgress();
+          resolve(tex);
+        }, undefined, () => { onProgress(); resolve(null); });
+      });
+    }
+
+    const [dayMap, nightMap, cloudsMap] = await Promise.all([
+      loadTex('earth_atmos_2048.jpg'),
+      loadTex('earth_lights_2048.png'),
+      loadTex('earth_clouds_1024.png'),
+    ]);
+
+    const earthUniforms = {
+      dayMap: { value: dayMap },
+      nightMap: { value: nightMap },
+      sunDirection: { value: sunDir },
+      time: { value: 0 },
+      explode: { value: 0 },
+    };
+
+    const earthMat = new THREE.ShaderMaterial({
+      uniforms: earthUniforms,
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        uniform float explode;
+        void main() {
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vec3 pos = position + normal * explode * 0.35;
+          vec4 world = modelMatrix * vec4(pos, 1.0);
+          vWorldPos = world.xyz;
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D dayMap;
+        uniform sampler2D nightMap;
+        uniform vec3 sunDirection;
+        uniform float explode;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main() {
+          vec3 day = texture2D(dayMap, vUv).rgb;
+          vec3 night = texture2D(nightMap, vUv).rgb;
+          float nDotL = dot(normalize(vNormal), normalize(sunDirection));
+          float term = smoothstep(-0.08, 0.18, nDotL);
+          vec3 color = mix(night * 1.25, day, term);
+          float rim = 1.0 - max(dot(normalize(vNormal), normalize(-vWorldPos)), 0.0);
+          rim = pow(rim, 3.0) * 0.22 * max(nDotL, 0.0);
+          color += vec3(0.35, 0.55, 0.95) * rim;
+          // Explosion flash
+          color += vec3(1.0, 0.6, 0.2) * explode * 1.8;
+          gl_FragColor = vec4(color, 1.0 - explode * 0.4);
+        }
+      `,
+      transparent: true,
+    });
+
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), earthMat);
+    scene.add(earth);
+
+    const clouds = new THREE.Mesh(
+      new THREE.SphereGeometry(1.012, 96, 96),
+      new THREE.MeshStandardMaterial({
+        map: cloudsMap, transparent: true, opacity: 0.45,
+        depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    scene.add(clouds);
+
+    const atmoMat = new THREE.ShaderMaterial({
+      uniforms: { sunDirection: { value: sunDir }, explode: { value: 0 } },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 world = modelMatrix * vec4(position, 1.0);
+          vWorldPos = world.xyz;
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 sunDirection;
+        uniform float explode;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main() {
+          float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.2);
+          float nDotL = max(dot(normalize(vNormal), normalize(sunDirection)), 0.0);
+          vec3 color = mix(vec3(0.15, 0.25, 0.6), vec3(0.4, 0.65, 1.0), nDotL);
+          color += vec3(1.0, 0.5, 0.15) * explode;
+          gl_FragColor = vec4(color, intensity * 0.55 * (1.0 - explode * 0.6));
+        }
+      `,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.08, 64, 64), atmoMat);
+    scene.add(atmosphere);
+
+    scene.add(new THREE.AmbientLight(0x223344, 0.35));
+    const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.6);
+    sunLight.position.copy(sunDir).multiplyScalar(10);
+    scene.add(sunLight);
+
+    // --- Interaction: hold to hit ---
+    let hits = 0;
+    const MAX_HITS = 3;
+    let isHolding = false;
+    let holdTimer = null;
+    let exploded = false;
+    let explodeProgress = 0;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    function showHitFeedback() {
+      hitsDisplay.textContent = hits + ' / ' + MAX_HITS;
+      hitsDisplay.classList.add('show');
+      setTimeout(() => hitsDisplay.classList.remove('show'), 700);
+    }
+
+    function triggerExplosion() {
+      exploded = true;
+      controls.autoRotate = false;
+      controls.enabled = false;
+
+      // Finale text
+      const words = ['Sen', 'Dünyanın', 'En', 'İyi', 'Dostusun'];
+      finaleWords.innerHTML = words.map((w, i) =>
+        `<span style="animation-delay:${0.15 + i * 0.22}s">${w}</span>`
+      ).join('');
+      setTimeout(() => finaleEl.classList.add('show'), 600);
+    }
+
+    function onPointerDown(e) {
+      if (exploded) return;
+      const x = (e.clientX / window.innerWidth) * 2 - 1;
+      const y = -(e.clientY / window.innerHeight) * 2 + 1;
+      pointer.set(x, y);
+      raycaster.setFromCamera(pointer, camera);
+      const intersects = raycaster.intersectObject(earth);
+      if (intersects.length === 0) return;
+
+      isHolding = true;
+      // Short hold = one hit
+      holdTimer = setTimeout(() => {
+        if (!isHolding || exploded) return;
+        hits++;
+        showHitFeedback();
+        // Small visual punch
+        earth.scale.setScalar(1.04);
+        setTimeout(() => earth.scale.setScalar(1), 120);
+        if (hits >= MAX_HITS) {
+          triggerExplosion();
+        }
+      }, 280); // basılı tutma eşiği
+    }
+
+    function onPointerUp() {
+      isHolding = false;
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    // Time controls
+    const tzSelect = document.getElementById('tz-select');
+    const timeSlider = document.getElementById('time-slider');
+    const timeLabel = document.getElementById('time-label');
+    const liveClock = document.getElementById('live-clock');
+    let clockMinutes = 12 * 60;
+    let isLive = true;
+
+    function minutesToLabel(m) {
+      const h = Math.floor(m / 60) % 24;
+      const min = Math.floor(m % 60);
+      return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+    }
+
+    function updateSunFromTime() {
+      const angle = ((clockMinutes - 720) / 1440) * Math.PI * 2;
+      const tzOffsets = {
+        'Europe/Istanbul': 3, 'UTC': 0, 'America/New_York': -4,
+        'America/Los_Angeles': -7, 'Europe/London': 1, 'Asia/Tokyo': 9, 'Australia/Sydney': 10
+      };
+      const lonOffset = (tzOffsets[tzSelect.value] || 0) / 24 * Math.PI * 2;
+      sunDir.set(
+        Math.cos(angle + lonOffset),
+        Math.sin(0.35),
+        Math.sin(angle + lonOffset)
+      ).normalize();
+      earthUniforms.sunDirection.value.copy(sunDir);
+      atmoMat.uniforms.sunDirection.value.copy(sunDir);
+      sunLight.position.copy(sunDir).multiplyScalar(10);
+      timeLabel.textContent = minutesToLabel(clockMinutes);
+    }
+
+    function syncLiveTime() {
+      if (!isLive) return;
+      const now = new Date();
+      const offsets = {
+        'Europe/Istanbul': 3, 'UTC': 0, 'America/New_York': -4,
+        'America/Los_Angeles': -7, 'Europe/London': 1, 'Asia/Tokyo': 9, 'Australia/Sydney': 10
+      };
+      const utcH = now.getUTCHours() + now.getUTCMinutes() / 60;
+      const localH = (utcH + (offsets[tzSelect.value] || 0) + 24) % 24;
+      clockMinutes = Math.floor(localH * 60);
+      timeSlider.value = clockMinutes;
+      updateSunFromTime();
+    }
+
+    timeSlider.addEventListener('input', () => {
+      isLive = false;
+      liveClock.checked = false;
+      clockMinutes = +timeSlider.value;
+      updateSunFromTime();
+    });
+    tzSelect.addEventListener('change', () => {
+      if (isLive) syncLiveTime();
+      else updateSunFromTime();
+    });
+    liveClock.addEventListener('change', () => {
+      isLive = liveClock.checked;
+      if (isLive) syncLiveTime();
+    });
+    syncLiveTime();
+    setInterval(syncLiveTime, 30000);
+
+    // Reset / Replay
+    function fullReset() {
+      hits = 0;
+      exploded = false;
+      explodeProgress = 0;
+      earthUniforms.explode.value = 0;
+      atmoMat.uniforms.explode.value = 0;
+      earth.scale.setScalar(1);
+      clouds.scale.setScalar(1);
+      atmosphere.scale.setScalar(1);
+      clouds.visible = true;
+      atmosphere.visible = true;
+      controls.enabled = true;
+      controls.autoRotate = true;
+      finaleEl.classList.remove('show');
+      finaleWords.innerHTML = '';
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      fullReset();
+      controls.reset();
+      camera.position.set(0, 0.35, 3.2);
+    });
+    document.getElementById('btn-replay').addEventListener('click', fullReset);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animation
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+      earthUniforms.time.value = t;
+
+      if (exploded) {
+        explodeProgress = Math.min(1, explodeProgress + 0.012);
+        earthUniforms.explode.value = explodeProgress;
+        atmoMat.uniforms.explode.value = explodeProgress;
+        const s = 1 + explodeProgress * 1.8;
+        earth.scale.setScalar(s);
+        clouds.scale.setScalar(s * 1.05);
+        atmosphere.scale.setScalar(s * 1.1);
+        if (explodeProgress > 0.6) {
+          clouds.visible = false;
+          atmosphere.visible = false;
+        }
+      } else {
+        clouds.rotation.y = t * 0.008;
+      }
+
+      stars.rotation.y = t * 0.0015;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    setTimeout(() => {
+      document.getElementById('hint').classList.add('hidden');
+    }, 9000);
+  </script>
+</body>
+</html>
